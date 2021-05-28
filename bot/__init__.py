@@ -4,12 +4,19 @@ import threading
 import time
 import random
 import string
+
 import aria2p
 import telegram.ext as tg
 from dotenv import load_dotenv
 from pyrogram import Client
 from telegraph import Telegraph
+
+import psycopg2
+from psycopg2 import Error
+
 import socket
+import faulthandler
+faulthandler.enable()
 
 socket.setdefaulttimeout(600)
 
@@ -22,6 +29,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     handlers=[logging.FileHandler('log.txt'), logging.StreamHandler()],
                     level=logging.INFO)
 
+LOGGER = logging.getLogger(__name__)
+
 load_dotenv('config.env')
 
 Interval = []
@@ -30,8 +39,17 @@ Interval = []
 def getConfig(name: str):
     return os.environ[name]
 
-
-LOGGER = logging.getLogger(__name__)
+def mktable():
+    try:
+        conn = psycopg2.connect(DB_URI)
+        cur = conn.cursor()
+        sql = "CREATE TABLE users (uid bigint, sudo boolean DEFAULT FALSE);"
+        cur.execute(sql)
+        conn.commit()
+        LOGGER.info("Table Created!")
+    except Error as e:
+        LOGGER.error(e)
+        exit(1)
 
 try:
     if bool(getConfig('_____REMOVE_THIS_LINE_____')):
@@ -61,12 +79,7 @@ status_reply_dict = {}
 download_dict = {}
 # Stores list of users and chats the bot is authorized to use in
 AUTHORIZED_CHATS = set()
-if os.path.exists('authorized_chats.txt'):
-    with open('authorized_chats.txt', 'r+') as f:
-        lines = f.readlines()
-        for line in lines:
-            #    LOGGER.info(line.split())
-            AUTHORIZED_CHATS.add(int(line.split()[0]))
+SUDO_USERS = set()
 try:
     achats = getConfig('AUTHORIZED_CHATS')
     achats = achats.split(" ")
@@ -77,6 +90,7 @@ except:
 
 try:
     BOT_TOKEN = getConfig('BOT_TOKEN')
+    DB_URI = getConfig('DATABASE_URL')
     parent_id = getConfig('GDRIVE_FOLDER_ID')
     DOWNLOAD_DIR = getConfig('DOWNLOAD_DIR')
     if DOWNLOAD_DIR[-1] != '/' or DOWNLOAD_DIR[-1] != '\\':
@@ -90,6 +104,26 @@ except KeyError as e:
     LOGGER.error("One or more env variables missing! Exiting now")
     exit(1)
 
+try:
+    conn = psycopg2.connect(DB_URI)
+    cur = conn.cursor()
+    sql = "SELECT * from users;"
+    cur.execute(sql)
+    rows = cur.fetchall()  #returns a list ==> (uid, sudo)
+    for row in rows:
+        AUTHORIZED_CHATS.add(row[0])
+        if row[1]:
+            SUDO_USERS.add(row[0])
+except Error as e:
+    if 'relation "users" does not exist' in str(e):
+        mktable()
+    else:
+        LOGGER.error(e)
+        exit(1)
+finally:
+    cur.close()
+    conn.close()
+
 LOGGER.info("Generating USER_SESSION_STRING")
 with Client(':memory:', api_id=int(TELEGRAM_API), api_hash=TELEGRAM_HASH, bot_token=BOT_TOKEN) as app:
     USER_SESSION_STRING = app.export_session_string()
@@ -102,6 +136,20 @@ telegraph.create_account(short_name=sname)
 telegraph_token = telegraph.get_access_token()
 LOGGER.info("Telegraph Token Generated: '" + telegraph_token + "'")
 
+try:
+    MEGA_API_KEY = getConfig('MEGA_API_KEY')
+except KeyError:
+    logging.warning('MEGA API KEY not provided!')
+    MEGA_API_KEY = None
+try:
+    MEGA_EMAIL_ID = getConfig('MEGA_EMAIL_ID')
+    MEGA_PASSWORD = getConfig('MEGA_PASSWORD')
+    if len(MEGA_EMAIL_ID) == 0 or len(MEGA_PASSWORD) == 0:
+        raise KeyError
+except KeyError:
+    logging.warning('MEGA Credentials not provided!')
+    MEGA_EMAIL_ID = None
+    MEGA_PASSWORD = None
 try:
     HEROKU_API_KEY = getConfig('HEROKU_API_KEY')
 except KeyError:
@@ -127,22 +175,8 @@ except KeyError:
 try:
     UPTOBOX_TOKEN = getConfig('UPTOBOX_TOKEN')
 except KeyError:
-    logging.warning('UPTOBOX_TOKEN not provided!')
+    logging.info('UPTOBOX_TOKEN not provided!')
     UPTOBOX_TOKEN = None
-try:
-    MEGA_API_KEY = getConfig('MEGA_API_KEY')
-except KeyError:
-    logging.warning('MEGA API KEY not provided!')
-    MEGA_API_KEY = None
-try:
-    MEGA_EMAIL_ID = getConfig('MEGA_EMAIL_ID')
-    MEGA_PASSWORD = getConfig('MEGA_PASSWORD')
-    if len(MEGA_EMAIL_ID) == 0 or len(MEGA_PASSWORD) == 0:
-        raise KeyError
-except KeyError:
-    logging.warning('MEGA Credentials not provided!')
-    MEGA_EMAIL_ID = None
-    MEGA_PASSWORD = None
 try:
     INDEX_URL = getConfig('INDEX_URL')
     if len(INDEX_URL) == 0:
@@ -221,7 +255,11 @@ try:
 except KeyError:
     SHORTENER = None
     SHORTENER_API = None
+try:
+    IMAGE_URL = getConfig('IMAGE_URL')
+except KeyError:
+    IMAGE_URL = 'https://telegra.ph/file/db03910496f06094f1f7a.jpg'
 
-updater = tg.Updater(token=BOT_TOKEN,use_context=True)
+updater = tg.Updater(token=BOT_TOKEN, use_context=True)
 bot = updater.bot
 dispatcher = updater.dispatcher
