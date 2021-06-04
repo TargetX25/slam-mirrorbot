@@ -12,28 +12,33 @@
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/breakdowns/slam-mirrorbot)
 [![Slam Mirror Support](https://img.shields.io/badge/slam%20mirror%20bot-support%20group-blue)](https://t.me/SlamMirrorSupport)
 
-**Slam Mirror Bot** is a Telegram Bot writen in Python for mirroring files on the Internet to our beloved Google Drive.
+**Slam Mirror Bot** is a multipurpose Telegram Bot writen in Python for mirroring files on the Internet to our beloved Google Drive.
 
 # Features supported:
 
 ## Additional Features
-- Mirroring Uptobox.com links to Google Drive (Uptobox account must be premium)
 - Get detailed info about replied media
 - Nyaa.si and Sukebei Torrent search
 - Speedtest with picture results
 - Limiting Torrent size support
 - Sudo with Database support
+- Multiple Trackers support
 - Check Heroku dynos stats
 - Custom image support
-- Racaty.net support
+- Counting file/folder
 - Shell and Executor
 - Stickers module
-
+- Direct links supported:
+```
+Racaty, Hxfile, Anonfiles,
+Fembed (femax20 & layarkacaxxi), Onedrive (Only works for file not folder)
+```
 ## From Original Repos
 - Mirroring direct download links, Torrent, and Telegram files to Google Drive
 - Mirroring Mega.nz links to Google Drive (If your Mega account not premium, it will limit 4-5gb/day)
+- Mirroring Uptobox.com links to Google Drive (Uptobox account must be premium)
 - Copy files from someone's Drive to your Drive (Using Autorclone)
-- Download/upload progress, speeds and ETAs
+- Download/Upload progress, Speeds and ETAs
 - Mirror all Youtube-dl supported links
 - Docker support
 - Uploading to Team Drive
@@ -41,8 +46,8 @@
 - Service Account support
 - Delete files from Drive
 - Shortener support
-- Custom Filename (Only for url, Telegram files and Youtube-dl. Not for Mega links and Magnet/Torrents)
-- Extracting password protected files, using custom filename and download from password protected index links see these examples:
+- Custom Filename (Only for URL, Telegram files and Youtube-dl. Not for Mega links and Magnet/Torrents)
+- Extracting password protected files, using custom filename and download from password protected Index Links see these examples:
 <p><a href="https://telegra.ph/Magneto-Python-Aria---Custom-Filename-Examples-01-20"> <img src="https://img.shields.io/badge/see%20on%20telegraph-grey?style=for-the-badge" width="190""/></a></p>
 
 - Extract these filetypes and uploads to Google Drive
@@ -111,7 +116,7 @@ cp config_sample.env config.env
 _____REMOVE_THIS_LINE_____=True
 ```
 Fill up rest of the fields. Meaning of each fields are discussed below:
-### Required field
+### Required Field
 - **BOT_TOKEN**: The Telegram bot token that you get from [@BotFather](https://t.me/BotFather)
 - **TELEGRAM_API**: This is to authenticate to your Telegram account for downloading Telegram files. You can get this from https://my.telegram.org DO NOT put this in quotes.
 - **TELEGRAM_HASH**: This is to authenticate to your Telegram account for downloading Telegram files. You can get this from https://my.telegram.org
@@ -121,7 +126,7 @@ Fill up rest of the fields. Meaning of each fields are discussed below:
 - **DOWNLOAD_DIR**: The path to the local folder where the downloads should be downloaded to
 - **DOWNLOAD_STATUS_UPDATE_INTERVAL**: A short interval of time in seconds after which the Mirror progress message is updated. (I recommend to keep it `5` seconds at least)  
 - **AUTO_DELETE_MESSAGE_DURATION**: Interval of time (in seconds), after which the bot deletes it's message (and command message) which is expected to be viewed instantly. (**Note**: Set to `-1` to never automatically delete messages)
-### Optional field
+### Optional Field
 - **AUTHORIZED_CHATS**: Fill user_id and chat_id of you want to authorize.
 - **IS_TEAM_DRIVE**: (Optional field) Set to `True` if `GDRIVE_FOLDER_ID` is from a Team Drive else `False` or Leave it empty.
 - **USE_SERVICE_ACCOUNTS**: (Optional field) (Leave empty if unsure) Whether to use Service Accounts or not. For this to work see [Using service accounts](https://github.com/breakdowns/slam-mirrorbot#generate-service-accounts-what-is-service-account) section below.
@@ -143,14 +148,22 @@ Fill up rest of the fields. Meaning of each fields are discussed below:
 ```
 exe.io, gplinks.in, shrinkme.io, urlshortx.com, shortzon.com
 ```
+
 Above are the supported url Shorteners. Except these only some url Shorteners are supported.
 
 **Note**: You can limit maximum concurrent downloads by changing the value of **MAX_CONCURRENT_DOWNLOADS** in aria.sh. By default, it's set to `7`.
+### Add more buttons (Optional)
+Two buttons are already added of Drive Link and Index Link, you can add extra buttons, these are optional, if you don't know what are below entries, simply leave them, don't fill anything in them.
+- **BUTTON_THREE_NAME**:
+- **BUTTON_THREE_URL**:
+- **BUTTON_FOUR_NAME**:
+- **BUTTON_FOUR_URL**:
+- **BUTTON_FIVE_NAME**:
+- **BUTTON_FIVE_URL**:
 
 </details>
 
 ## Getting Google OAuth API credential file
-
 - Visit the [Google Cloud Console](https://console.developers.google.com/apis/credentials)
 - Go to the OAuth Consent tab, fill it, and save.
 - Go to the Credentials tab and click Create Credentials -> OAuth Client ID
@@ -197,22 +210,58 @@ Many thanks to [AutoRClone](https://github.com/xyou365/AutoRclone) for the scrip
 **NOTE**: Using Service Accounts is only recommended while uploading to a Team Drive.
 
 ## Generate Service Accounts. [What is Service Account](https://cloud.google.com/iam/docs/service-accounts)
+<details>
+    <summary><b>Click here for more details</b></summary>
 
 Let us create only the Service Accounts that we need. 
 **Warning**: abuse of this feature is not the aim of this project and we do **NOT** recommend that you make a lot of projects, just one project and 100 SAs allow you plenty of use, its also possible that over abuse might get your projects banned by Google. 
 
+**NOTE:** 1 Service Account can copy around 750gb a day, 1 project can make 100 Service Accounts so that's 75tb a day, for most users this should easily suffice.
 ```
-Note: 1 Service Account can copy around 750gb a day, 1 project can make 100 Service Accounts so that's 75tb a day, for most users this should easily suffice. 
+python3 gen_sa_accounts.py --quick-setup 1 --new-only
 ```
+A folder named accounts will be created which will contain keys for the Service Accounts.
 
-`python3 gen_sa_accounts.py --quick-setup 1 --new-only`
+Or you can create Service Accounts to current project, no need to create new one
 
-A folder named accounts will be created which will contain keys for the Service Accounts
+- List your projects ids
+```
+python3 gen_sa_accounts.py --list-projects
+```
+- Enable services automatically by this command
+```
+python3 gen_sa_accounts.py --enable-services $PROJECTID
+```
+- Create Sevice Accounts to current project
+```
+python3 gen_sa_accounts.py --create-sas $PROJECTID
+```
+- Download Sevice Accounts as accounts folder
+```
+python3 gen_sa_accounts.py --download-keys $PROJECTID
+```
+If you want to add Service Accounts to Google Group, follow these steps
+
+- Mount accounts folder
+```
+cd accounts
+```
+- Grab emails form all accounts to emails.txt file that would be created in accounts folder
+```
+grep -oPh '"client_email": "\K[^"]+' *.json > emails.txt
+```
+- Unmount acounts folder
+```
+cd -
+```
+Then add emails from emails.txt to Google Group, after that add Google Group to your Shared Drive and promote it to manager.
 
 **NOTE**: If you have created SAs in past from this script, you can also just re download the keys by running:
 ```
 python3 gen_sa_accounts.py --download-keys project_id
 ```
+
+</details>
 
 ## Add all the Service Accounts to the Team Drive
 - Run:
@@ -221,9 +270,13 @@ python3 add_to_team_drive.py -d SharedTeamDriveSrcID
 ```
 
 # Youtube-dl authentication using .netrc file
-For using your premium accounts in Youtube-dl, edit the netrc file according to following format:
+For using your premium accounts in Youtube-dl or for protected Index Links, edit the netrc file according to following format:
 ```
 machine host login username password my_youtube_password
+```
+For Index Link with only password without username, even http auth will not work, so this is the solution.
+```
+machine example.workers.dev password index_password
 ```
 Where host is the name of extractor (eg. Youtube, Twitch). Multiple accounts of different hosts can be added each separated by a new line.
 
